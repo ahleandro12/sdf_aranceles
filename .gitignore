@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+.venv-1/
+venv/
+env/
+
+# Base de datos real (no subir datos de BIOTEC)
+data/biotec.db
+data/demo.db
+data/*.db
+
+# Mantener la carpeta data
+!data/.gitkeep
+
+# Reportes generados
+reportes/
+
+# VS Code
+.vscode/
+
+# Archivos temporales
+*.tmp
+fix.py
+parser_sim.py
+importador.py
+
+# Excel/PDF generados
+*.xlsx
+*.pdf
+
+# Secrets
+.streamlit/secrets.toml
