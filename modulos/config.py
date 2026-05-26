@@ -1,44 +1,23 @@
 import streamlit as st
 import db
 
-def _fetch_cda_cotizaciones():
-    """Trae USD (BNA venta), EUR y GBP desde cda.org.ar. Devuelve dict {moneda: venta, _error: str}."""
-    import requests
-    from bs4 import BeautifulSoup
-
-    BUSCAR = {
-        "DOLAR U.S.A": "USD",
-        "EURO":        "EUR",
-        "LIBRA ESTERLINA": "GBP",
-    }
+def _fetch_bcra_cotizaciones():
+    """Trae USD, EUR y GBP desde API BCRA. Devuelve dict {moneda: venta}."""
+    import requests, urllib3
+    urllib3.disable_warnings()
     resultados = {}
     try:
         r = requests.get(
-            "https://cda.org.ar/tipo_cambio.php",
+            "https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones",
+            verify=False,
             timeout=10,
-            headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                "Accept-Language": "es-AR,es;q=0.9",
-            },
-            verify=True,
         )
-        r.encoding = "iso-8859-1"
-        soup = BeautifulSoup(r.text, "html.parser")
-        for row in soup.find_all("tr"):
-            cols = [c.get_text(strip=True) for c in row.find_all("td")]
-            if len(cols) >= 5:
-                divisa = cols[1].upper().strip()
-                for clave, moneda in BUSCAR.items():
-                    if clave in divisa and moneda not in resultados:
-                        try:
-                            venta = float(cols[4].replace(",", "."))
-                            if venta > 0:
-                                resultados[moneda] = venta
-                        except Exception:
-                            pass
-        if not resultados:
-            resultados["_error"] = f"Respuesta recibida ({r.status_code}) pero sin datos. HTML: {r.text[:200]}"
+        data = r.json()
+        for item in data.get("results", {}).get("detalle", []):
+            cod = item.get("codigoMoneda")
+            val = item.get("tipoCotizacion", 0)
+            if cod in ("USD", "EUR", "GBP") and float(val) > 0:
+                resultados[cod] = float(val)
     except Exception as e:
         resultados["_error"] = str(e)
     return resultados
@@ -58,23 +37,21 @@ def render():
         st.metric("GBP → ARS", f"$ {float(cfg.get('tc_gbp', 0) or 0):,.0f}")
     with col_btn:
         st.write("")
-        if st.button("🔄 Actualizar CDA (BNA)", use_container_width=True):
-            with st.spinner("Consultando CDA..."):
-                cotizaciones = _fetch_cda_cotizaciones()
-            datos = {k: v for k, v in cotizaciones.items() if k != "_error"}
-            if datos:
-                if "USD" in datos:
-                    db.set_config("tc", datos["USD"])
-                if "EUR" in datos:
-                    db.set_config("tc_eur", datos["EUR"])
-                if "GBP" in datos:
-                    db.set_config("tc_gbp", datos["GBP"])
-                msgs = [f"{k}: $ {v:,.0f}" for k, v in datos.items()]
+        if st.button("🔄 Actualizar BCRA", use_container_width=True):
+            with st.spinner("Consultando BCRA..."):
+                cotizaciones = _fetch_bcra_cotizaciones()
+            if cotizaciones:
+                if "USD" in cotizaciones:
+                    db.set_config("tc", cotizaciones["USD"])
+                if "EUR" in cotizaciones:
+                    db.set_config("tc_eur", cotizaciones["EUR"])
+                if "GBP" in cotizaciones:
+                    db.set_config("tc_gbp", cotizaciones["GBP"])
+                msgs = [f"{k}: $ {v:,.0f}" for k, v in cotizaciones.items()]
                 st.success("Actualizado — " + " | ".join(msgs))
                 st.rerun()
             else:
-                err = cotizaciones.get("_error", "Sin datos")
-                st.error(f"No se pudo obtener cotizaciones desde CDA: {err}")
+                st.error("No se pudo obtener cotizaciones desde CDA. Verificá conexión.")
 
     st.divider()
 
