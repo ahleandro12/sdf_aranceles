@@ -1,46 +1,39 @@
 import streamlit as st
 import db
 
-BCRA_CODIGOS = {
-    "USD": ["dolar", "usd"],
-    "EUR": ["euro", "eur"],
-    "GBP": ["libra", "gbp", "esterlina"],
-}
-
-def _fetch_bcra_cotizaciones():
-    """Trae USD, EUR, GBP desde la API del BCRA. Devuelve dict {moneda: venta}."""
+def _fetch_cda_cotizaciones():
+    """Trae USD (BNA venta), EUR y GBP desde cda.org.ar. Devuelve dict {moneda: venta}."""
     import requests
+    from bs4 import BeautifulSoup
+
+    BUSCAR = {
+        "DOLAR U.S.A": "USD",
+        "EURO":        "EUR",
+        "LIBRA ESTERLINA": "GBP",
+    }
     resultados = {}
     try:
         r = requests.get(
-            "https://api.bcra.gob.ar/estadisticas/v3.0/cotizaciones",
+            "https://cda.org.ar/tipo_cambio.php",
             timeout=7,
             headers={"User-Agent": "SDF-BIOTEC/1.0"},
-            verify=False
         )
-        data = r.json()
-        detalle = data.get("results", {}).get("detalle", [])
-        for item in detalle:
-            codigo = item.get("codigoMoneda", "").lower()
-            descripcion = item.get("descripcion", "").lower()
-            texto = codigo + " " + descripcion
-            for moneda, claves in BCRA_CODIGOS.items():
-                if moneda not in resultados:
-                    if any(c in texto for c in claves):
-                        venta = item.get("tipoCotizacion")
-                        if venta and float(venta) > 0:
-                            resultados[moneda] = float(venta)
+        r.encoding = "iso-8859-1"
+        soup = BeautifulSoup(r.text, "html.parser")
+        for row in soup.find_all("tr"):
+            cols = [c.get_text(strip=True) for c in row.find_all("td")]
+            if len(cols) >= 5:
+                divisa = cols[1].upper().strip()
+                for clave, moneda in BUSCAR.items():
+                    if clave in divisa and moneda not in resultados:
+                        try:
+                            venta = float(cols[4].replace(",", "."))
+                            if venta > 0:
+                                resultados[moneda] = venta
+                        except Exception:
+                            pass
     except Exception:
         pass
-
-    # Fallback USD via dolarapi si BCRA no lo devolvio
-    if "USD" not in resultados:
-        try:
-            import requests
-            r2 = requests.get("https://dolarapi.com/v1/dolares/oficial", timeout=5)
-            resultados["USD"] = float(r2.json()["venta"])
-        except Exception:
-            pass
     return resultados
 
 
@@ -58,9 +51,9 @@ def render():
         st.metric("GBP → ARS", f"$ {float(cfg.get('tc_gbp', 0) or 0):,.0f}")
     with col_btn:
         st.write("")
-        if st.button("🔄 Actualizar BCRA", use_container_width=True):
-            with st.spinner("Consultando BCRA..."):
-                cotizaciones = _fetch_bcra_cotizaciones()
+        if st.button("🔄 Actualizar CDA (BNA)", use_container_width=True):
+            with st.spinner("Consultando CDA..."):
+                cotizaciones = _fetch_cda_cotizaciones()
             if cotizaciones:
                 if "USD" in cotizaciones:
                     db.set_config("tc", cotizaciones["USD"])
@@ -72,7 +65,7 @@ def render():
                 st.success("Actualizado — " + " | ".join(msgs))
                 st.rerun()
             else:
-                st.error("No se pudo obtener cotizaciones. Verificá conexión.")
+                st.error("No se pudo obtener cotizaciones desde CDA. Verificá conexión.")
 
     st.divider()
 

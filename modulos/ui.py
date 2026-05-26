@@ -75,12 +75,10 @@ def gastos_html(resultado, despachante=""):
     return html
 
 def metricas(resultado):
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2 = st.columns(2)
     with col1:
         st.metric("Base imponible", f"USD {float(resultado['base_imponible']):,.2f}")
+        st.metric("Precio total",   f"USD {float(resultado['precio_total']):,.2f}")
     with col2:
-        st.metric("Total VEP", f"USD {float(resultado['total_vep_usd']):,.2f}")
-    with col3:
-        st.metric("Precio total", f"USD {float(resultado['precio_total']):,.2f}")
-    with col4:
-        st.metric("Costo x KG", f"USD {float(resultado['costo_kg']):,.4f}")
+        st.metric("Total VEP",  f"USD {float(resultado['total_vep_usd']):,.2f}")
+        st.metric("Costo x KG", f"USD {float(resultado['costo_kg']):,.2f}")

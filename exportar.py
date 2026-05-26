@@ -265,20 +265,7 @@ def _hoja_resumen(wb, c):
     ws.cell(row, 3).number_format = "#,##0.00"; ws.cell(row, 3).font = _font(True, size=10); ws.cell(row, 3).alignment = _align("right")
     ws.row_dimensions[row].height = 18; row += 1
 
-    # Adelanto al despachante (suma VEP + gastos sin BIOTEC)
-    adelanto_row = row
-    ws.merge_cells(f"A{row}:B{row}")
-    la = ws.cell(row, 1, "ADELANTO AL DESPACHANTE (USD)")
-    la.fill = _fill(AZUL_MED); la.font = _font(True, BLANCO, 10); la.alignment = _align("center")
-    # VEP + gastos excepto INAL y VEP ANMAT (fila 5 = gasto_rows[-1])
-    gastos_despa = "+".join([f"B{r}+D{r}" for r in gasto_rows[:-1]])  # excluye última fila (INAL/ANMAT)
-    ws.cell(row, 3).value = f"=C{vep_row}+{gastos_despa}"
-    ws.cell(row, 3).number_format = "#,##0.00"; ws.cell(row, 3).font = _font(True, BLANCO, 10)
-    ws.cell(row, 3).fill = _fill(AZUL_MED); ws.cell(row, 3).alignment = _align("right")
-    ws.cell(row, 4).value = f"=C{adelanto_row}*{tc_ref}"
-    ws.cell(row, 4).number_format = "#,##0.00"; ws.cell(row, 4).font = _font(True, BLANCO, 10)
-    ws.cell(row, 4).fill = _fill(AZUL_MED); ws.cell(row, 4).alignment = _align("right")
-    ws.row_dimensions[row].height = 18; row += 2
+    row += 2  # adelanto al despachante removido del resumen
 
     # F · Resumen final
     _seccion(ws, row, "F · RESUMEN FINAL", AZUL_OSCURO); row += 1

@@ -87,11 +87,18 @@ def predecir_costos(producto: str, kg: float, modal: str) -> dict | None:
 
     conn = db.get_conn()
 
-    # Match exacto por producto
+    # Match exacto por producto + modal
     rows = conn.execute(
-        "SELECT * FROM matriz_costos WHERE UPPER(producto) = UPPER(?) AND kg > 0",
-        (producto,)
+        "SELECT * FROM matriz_costos WHERE UPPER(producto) = UPPER(?) AND modal = ? AND kg > 0",
+        (producto, modal)
     ).fetchall()
+
+    # Fallback: producto exacto sin importar modal (con advertencia)
+    if not rows:
+        rows = conn.execute(
+            "SELECT * FROM matriz_costos WHERE UPPER(producto) = UPPER(?) AND kg > 0",
+            (producto,)
+        ).fetchall()
 
     # Fallback por palabra clave + modal
     if not rows:
@@ -131,16 +138,32 @@ def predecir_costos(producto: str, kg: float, modal: str) -> dict | None:
         return {"min": round(vals.min(),2), "avg": round(vals.mean(),2),
                 "max": round(vals.max(),2), "count": len(vals)}
 
+    # Calcular ratios por KG para depósito y forwarder
+    def _ratio(col):
+        """Promedio de (valor/kg) por embarque individual."""
+        mask = (df[col].notna()) & (df[col] > 0) & (df['kg'] > 0)
+        if not mask.any():
+            return None
+        ratios = df.loc[mask, col] / df.loc[mask, 'kg']
+        return {"min": round(ratios.min(),4), "avg": round(ratios.mean(),4),
+                "max": round(ratios.max(),4), "count": len(ratios)}
+
+    muestra_chica = len(df) < 2
+    modal_ref = df['modal'].mode()[0] if not df['modal'].empty else modal
+    modal_mixto = df['modal'].nunique() > 1
+
     return {
         "fuente":        "exacto" if producto.upper() in df['producto'].str.upper().values else "modal",
         "modal":         modal,
-        "modal_ref":     df['modal'].mode()[0] if not df['modal'].empty else modal,
+        "modal_ref":     modal_ref,
+        "modal_mixto":   modal_mixto,
+        "muestra_chica": muestra_chica,
         "embarques":     len(df),
         "productos_ref": df['producto'].unique().tolist()[:5],
         "kg_referencia": round(df['kg'].mean(), 0),
-        "forwarder":     _rango('forwarder_kg'),
-        "deposito":      _rango('deposito_fiscal_kg'),
-        "transporte":    _rango('transporte_kg'),
+        "forwarder":     _ratio('forwarder_kg'),
+        "deposito":      _ratio('deposito_fiscal_kg'),
+        "transporte":    _ratio('transporte_kg'),
         "honorarios":    _rango('honorarios'),
         "gastos_despa":  _rango('gastos_despa'),
         "anmat":         _rango('anmat'),
@@ -163,11 +186,8 @@ def estimar_deposito(producto: str, kg: float, modal: str) -> float | None:
         return None
 
     dep = pred["deposito"]
-    kg_ref = pred.get("kg_referencia", kg)
-    if not kg_ref or kg_ref <= 0:
-        return None
-
-    return round((dep["avg"] / kg_ref) * kg, 2)
+    # dep["avg"] ya es ratio por KG (valor/kg por embarque)
+    return round(dep["avg"] * kg, 2)
 
 
 def estimar_forwarder(producto: str, kg: float, modal: str) -> float | None:
@@ -180,11 +200,7 @@ def estimar_forwarder(producto: str, kg: float, modal: str) -> float | None:
         return None
 
     fwd = pred["forwarder"]
-    kg_ref = pred.get("kg_referencia", kg)
-    if not kg_ref or kg_ref <= 0:
-        return None
-
-    return round((fwd["avg"] / kg_ref) * kg, 2)
+    return round(fwd["avg"] * kg, 2)
 
 
 # ── Badge flete estimado ──────────────────────────────────────────────────────
