@@ -520,5 +520,52 @@ def init_demo_data():
         except Exception:
             pass
 
+    # Matriz de costos de ejemplo para el predictor
+    count_matriz = conn.execute("SELECT COUNT(*) FROM matriz_costos").fetchone()[0] if         conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='matriz_costos'").fetchone() else 0
+
+    if count_matriz == 0:
+        try:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS matriz_costos (
+                    btc TEXT, producto TEXT, kg REAL, precio_unit REAL,
+                    valor_factura REAL, honorarios REAL, comis_banco REAL,
+                    lakaut REAL, deposito_fiscal_kg REAL, gastos_despa REAL,
+                    forwarder_kg REAL, anmat REAL, gastos_impo REAL,
+                    transporte_kg REAL, seguridad REAL, otro REAL,
+                    mercaderia_transito REAL, total REAL, costo_final_unit REAL,
+                    modal TEXT
+                )
+            """)
+            matriz_demo = [
+                # btc, producto, kg, precio_unit, valor_factura, honorarios, comis_banco, lakaut,
+                # deposito_fiscal_kg, gastos_despa, forwarder_kg, anmat, gastos_impo,
+                # transporte_kg, seguridad, otro, mercaderia_transito, total, costo_final_unit, modal
+                ("DEMO-001", "ALGINATO DE SODIO", 5000, 8.90, 44500, 362, 120, 22,
+                 838.70, 87.48, 864.19, 221.49, 1304.92, 381.62, 0, 0, 0, 48703, 9.74, "Maritimo"),
+                ("DEMO-003", "ALGINATO DE SODIO", 3000, 10.10, 30300, 237, 138, 23,
+                 945.00, 93.69, 0, 151.50, 929.42, 354.10, 0, 0, 0, 33172, 11.06, "Maritimo"),
+                ("DEMO-004", "ALGINATO DE SODIO", 5000, 8.80, 44000, 353, 100, 23,
+                 980.00, 94.73, 520.00, 220.00, 1336.93, 321.02, 0, 0, 0, 47949, 9.59, "Maritimo"),
+                ("DEMO-005", "CARRAGENINA", 5000, 9.90, 49500, 508, 141, 20,
+                 800.00, 147.85, 1692.57, 495.00, 6116.43, 437.22, 0, 0, 0, 59859, 11.97, "Maritimo"),
+                ("DEMO-006", "CARRAGENINA", 3000, 15.82, 47460, 382, 100, 23,
+                 306.64, 87.21, 665.00, 237.30, 346.29, 0, 0, 0, 0, 49608, 16.54, "Maritimo"),
+                ("DEMO-007", "TRANSGLUTAMINASA", 100, 3.00, 300, 100, 50, 20,
+                 279.00, 152.58, 831.00, 1.51, 76.03, 402, 0, 0, 0, 2212, 22.12, "Aereo"),
+                ("DEMO-008", "GOMA XANTICA", 2400, 8.00, 19200, 153, 77, 9,
+                 498.30, 52.95, 362.16, 96.00, 679.75, 183.02, 0, 0, 0, 21312, 8.88, "Maritimo"),
+                ("DEMO-009", "AGAR", 5000, 12.90, 64500, 521, 130, 23,
+                 979.78, 95.58, 687.36, 322.50, 7839.20, 296.86, 0, 0, 0, 75395, 15.08, "Maritimo"),
+                ("DEMO-010", "NATAMICINA 50%", 1000, 46.00, 46000, 460, 61, 9,
+                 404.00, 147.95, 204.61, 230.00, 129.30, 208.50, 0, 0, 0, 47856, 47.86, "Maritimo"),
+                ("DEMO-011", "GOMA GELLAN", 3000, 14.80, 44400, 363, 130, 23,
+                 800.00, 101.35, 1378.20, 222.00, 1374.89, 352.15, 0, 0, 0, 49145, 16.38, "Maritimo"),
+            ]
+            conn.executemany("""
+                INSERT INTO matriz_costos VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            """, matriz_demo)
+        except Exception:
+            pass
+
     conn.commit()
     conn.close()
