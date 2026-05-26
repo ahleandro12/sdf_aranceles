@@ -2,7 +2,7 @@ import streamlit as st
 import db
 
 def _fetch_cda_cotizaciones():
-    """Trae USD (BNA venta), EUR y GBP desde cda.org.ar. Devuelve dict {moneda: venta}."""
+    """Trae USD (BNA venta), EUR y GBP desde cda.org.ar. Devuelve dict {moneda: venta, _error: str}."""
     import requests
     from bs4 import BeautifulSoup
 
@@ -15,8 +15,13 @@ def _fetch_cda_cotizaciones():
     try:
         r = requests.get(
             "https://cda.org.ar/tipo_cambio.php",
-            timeout=7,
-            headers={"User-Agent": "SDF-BIOTEC/1.0"},
+            timeout=10,
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language": "es-AR,es;q=0.9",
+            },
+            verify=True,
         )
         r.encoding = "iso-8859-1"
         soup = BeautifulSoup(r.text, "html.parser")
@@ -32,8 +37,10 @@ def _fetch_cda_cotizaciones():
                                 resultados[moneda] = venta
                         except Exception:
                             pass
-    except Exception:
-        pass
+        if not resultados:
+            resultados["_error"] = f"Respuesta recibida ({r.status_code}) pero sin datos. HTML: {r.text[:200]}"
+    except Exception as e:
+        resultados["_error"] = str(e)
     return resultados
 
 
@@ -54,18 +61,20 @@ def render():
         if st.button("🔄 Actualizar CDA (BNA)", use_container_width=True):
             with st.spinner("Consultando CDA..."):
                 cotizaciones = _fetch_cda_cotizaciones()
-            if cotizaciones:
-                if "USD" in cotizaciones:
-                    db.set_config("tc", cotizaciones["USD"])
-                if "EUR" in cotizaciones:
-                    db.set_config("tc_eur", cotizaciones["EUR"])
-                if "GBP" in cotizaciones:
-                    db.set_config("tc_gbp", cotizaciones["GBP"])
-                msgs = [f"{k}: $ {v:,.0f}" for k, v in cotizaciones.items()]
+            datos = {k: v for k, v in cotizaciones.items() if k != "_error"}
+            if datos:
+                if "USD" in datos:
+                    db.set_config("tc", datos["USD"])
+                if "EUR" in datos:
+                    db.set_config("tc_eur", datos["EUR"])
+                if "GBP" in datos:
+                    db.set_config("tc_gbp", datos["GBP"])
+                msgs = [f"{k}: $ {v:,.0f}" for k, v in datos.items()]
                 st.success("Actualizado — " + " | ".join(msgs))
                 st.rerun()
             else:
-                st.error("No se pudo obtener cotizaciones desde CDA. Verificá conexión.")
+                err = cotizaciones.get("_error", "Sin datos")
+                st.error(f"No se pudo obtener cotizaciones desde CDA: {err}")
 
     st.divider()
 
