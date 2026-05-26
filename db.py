@@ -523,7 +523,9 @@ def init_demo_data():
     # Matriz de costos de ejemplo para el predictor
     count_matriz = conn.execute("SELECT COUNT(*) FROM matriz_costos").fetchone()[0] if         conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='matriz_costos'").fetchone() else 0
 
-    if count_matriz == 0:
+    conn.execute("DROP TABLE IF EXISTS matriz_costos")
+    count_matriz = 0
+    if True:
         try:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS matriz_costos (
