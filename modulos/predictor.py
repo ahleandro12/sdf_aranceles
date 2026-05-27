@@ -215,21 +215,28 @@ def render_predictor_badge(producto: str, kg: float, modal: str):
         return
 
     fwd = pred["forwarder"]
-    kg_ref = pred.get("kg_referencia", kg)
-    if not kg_ref or kg_ref <= 0:
-        return
-
-    flete_estimado = round((fwd["avg"] / kg_ref) * kg, 2)
-    flete_min = round((fwd["min"] / kg_ref) * kg, 2)
-    flete_max = round((fwd["max"] / kg_ref) * kg, 2)
+    flete_estimado = round(float(fwd["avg"]) * kg, 0)
+    flete_min = round(float(fwd["min"]) * kg, 0)
+    flete_max = round(float(fwd["max"]) * kg, 0)
     fuente = pred.get("modal_ref", modal)
+    n = pred["embarques"]
+
+    advertencias = []
+    if pred.get("muestra_chica"):
+        advertencias.append("⚠️ muestra chica")
+    if pred.get("modal_mixto"):
+        advertencias.append("⚠️ modales mixtos")
+    adv_txt = " · ".join(advertencias)
+    color_bg = "#FFF3E0" if advertencias else "#E8EAF6"
+    color_txt = "#E65100" if advertencias else "#3949AB"
+    color_sub = "#BF360C" if advertencias else "#7986CB"
 
     st.markdown(
-        f'<div style="background:#E8EAF6;border-radius:8px;padding:6px 12px;margin:4px 0;display:inline-block;">'
-        f'<span style="font-size:11px;color:#3949AB;font-weight:600;">✈️ Flete estimado: '
-        f'USD {flete_estimado:,.0f}</span>'
-        f'<span style="font-size:10px;color:#7986CB;"> (rango {flete_min:,.0f}–{flete_max:,.0f} · '
-        f'{pred["embarques"]} ref {fuente})</span>'
+        f'<div style="background:{color_bg};border-radius:8px;padding:6px 12px;margin:4px 0;display:inline-block;">'
+        f'<span style="font-size:11px;color:{color_txt};font-weight:600;">✈️ Flete estimado: '
+        f'USD {int(flete_estimado):,}</span>'
+        f'<span style="font-size:10px;color:{color_sub};"> (rango {int(flete_min):,}–{int(flete_max):,} · '
+        f'{n} ref {fuente}{" · " + adv_txt if adv_txt else ""})</span>'
         f'</div>',
         unsafe_allow_html=True
     )
