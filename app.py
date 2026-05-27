@@ -48,14 +48,6 @@ if authentication_status is False:
     st.error("Usuario o contraseña incorrectos.")
     st.stop()
 
-if authentication_status is False:
-    st.error("Usuario o contraseña incorrectos.")
-    st.stop()
-
-if authentication_status is None:
-    st.info("👋 Ingresá con usuario **demo** / contraseña **demo2024** para explorar la app.")
-    st.stop()
-
 # ── Usuario autenticado ───────────────────────────────────────────────────────
 
 role = credentials["usernames"][username]["role"]
@@ -98,6 +90,20 @@ with st.sidebar:
     st.divider()
     cfg = db.get_all_config()
     st.metric("TC", f"${float(cfg.get('tc', 1400)):,.0f}")
+    if not is_demo:
+        if st.button("🔄 TC", use_container_width=True):
+            from modulos.config import _fetch_bcra_cotizaciones
+            with st.spinner("..."):
+                cots = _fetch_bcra_cotizaciones()
+            datos = {k: v for k, v in cots.items() if k != "_error"}
+            if datos:
+                if "USD" in datos:
+                    db.set_config("tc", datos["USD"])
+                if "EUR" in datos:
+                    db.set_config("tc_eur", datos["EUR"])
+                if "GBP" in datos:
+                    db.set_config("tc_gbp", datos["GBP"])
+                st.rerun()
     st.divider()
     authenticator.logout("Salir", location="sidebar")
 
